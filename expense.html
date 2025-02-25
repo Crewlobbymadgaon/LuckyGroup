@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky Group - Expense Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        h2 {
+            font-size: 24px;
+            color: #d63384;
+        }
+        input, button, select {
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+            display: block;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lucky Group</h1>
+        <h2>Happy Birthday Rupesh</h2>
+        <label for="member">Select Member: </label>
+        <select id="member">
+            <option value="RAJEESH RAJ">RAJEESH RAJ</option>
+            <option value="VIJITH K T V">VIJITH K T V</option>
+            <option value="VIJITH K">VIJITH K</option>
+            <option value="SAJEESH P">SAJEESH P</option>
+            <option value="RUPESH S">RUPESH S</option>
+        </select>
+        <input type="text" id="item" placeholder="Enter expense item">
+        <input type="number" id="expense" placeholder="Enter amount in ₹">
+        <button onclick="addExpense()">Add Expense</button>
+        <button onclick="calculateTotal()">Calculate Total</button>
+        <button onclick="clearExpenses()">Clear</button>
+        <button onclick="shareOnWhatsApp()">Share on WhatsApp</button>
+        <h2>Total Expenses: ₹<span id="total">0.00</span></h2>
+        <table>
+            <tr>
+                <th>Friend</th>
+                <th>Expense Item</th>
+                <th>Amount (₹)</th>
+            </tr>
+            <tbody id="expenseTable"></tbody>
+        </table>
+        <h2>Summary</h2>
+        <table>
+            <tr>
+                <th>Friend</th>
+                <th>Total Expense (₹)</th>
+                <th>Share to Pay/Receive (₹)</th>
+            </tr>
+            <tbody id="summaryTable"></tbody>
+        </table>
+    </div>
+    <script>
+        const scriptURL = "https://script.google.com/macros/s/AKfycbwz8w_i9z3gNypL7AyNNJvEsPIuDmBfCOx92xwLjTw1FoWXgAZmxcrUD_wvR4Yn6PPW0w/exec";
+
+        function addExpense() {
+            let data = {
+                member: document.getElementById("member").value,
+                item: document.getElementById("item").value,
+                amount: parseFloat(document.getElementById("expense").value) || 0
+            };
+            fetch(scriptURL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            }).then(() => {
+                alert("Expense saved!");
+                loadExpenses();
+            });
+        }
+
+        function calculateTotal() {
+            fetch(scriptURL)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("total").innerText = data.totalExpense.toFixed(2);
+                updateSummary(data.memberTotals, data.totalExpense);
+            });
+        }
+
+        function loadExpenses() {
+            fetch(scriptURL)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("total").innerText = data.totalExpense.toFixed(2);
+                let tableBody = document.getElementById("expenseTable");
+                tableBody.innerHTML = "";
+                data.expenses.slice(1).forEach(row => {
+                    let tr = `<tr><td>${row[0]}</td><td>${row[1]}</td><td>₹${row[2]}</td></tr>`;
+                    tableBody.innerHTML += tr;
+                });
+                updateSummary(data.memberTotals, data.totalExpense);
+            });
+        }
+
+        function updateSummary(memberTotals, totalExpense) {
+            let share = totalExpense / Object.keys(memberTotals).length;
+            let summaryBody = document.getElementById("summaryTable");
+            summaryBody.innerHTML = "";
+            Object.keys(memberTotals).forEach(member => {
+                let balance = memberTotals[member] - share;
+                let row = `<tr><td>${member}</td><td>₹${memberTotals[member].toFixed(2)}</td><td>${balance >= 0 ? "₹+" + balance.toFixed(2) : "₹" + balance.toFixed(2)}</td></tr>`;
+                summaryBody.innerHTML += row;
+            });
+        }
+
+        function clearExpenses() {
+            fetch(scriptURL, { method: "DELETE" }).then(() => {
+                alert("Expenses cleared!");
+                loadExpenses();
+            });
+        }
+
+        window.onload = loadExpenses;
+    </script>
+</body>
+</html>
+
