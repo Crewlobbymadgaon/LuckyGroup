@@ -1,164 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Expense Tracker-19/08/2025</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            text-align: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            margin: auto;
-        }
-        h1 {
-            font-size: 32px;
-            font-weight: bold;
-        }
-        h2 {
-            font-size: 24px;
-            color: #d63384;
-        }
-        input, button, select {
-            margin: 10px 0;
-            padding: 10px;
-            font-size: 16px;
-            width: 100%;
-            display: block;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid black;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #ddd;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Offline Expense Tracker - 19/08/2025</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f4f4; text-align:center; padding:18px; }
+    .container { background:white; padding:18px; border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,0.08); max-width:780px; margin:auto; }
+    h1 { font-size:26px; margin:4px 0; }
+    h2 { font-size:18px; color:#d63384; margin:6px 0 12px; }
+    label { display:block; text-align:left; font-weight:600; margin-top:8px; }
+    select,input,button { padding:10px; font-size:15px; width:100%; box-sizing:border-box; margin-top:6px; }
+    .actions { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:10px; }
+    button { border:none; border-radius:8px; cursor:pointer; background:#007bff; color:white; }
+    button.secondary { background:#6c757d; }
+    button.warn { background:#dc3545; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; font-size:14px; }
+    th,td { border:1px solid #ddd; padding:8px; text-align:center; }
+    th { background:#f0f0f0; font-weight:700; }
+    .muted { color:#666; font-size:13px; margin-top:8px; }
+    @media(max-width:640px) { .actions { grid-template-columns:1fr; } }
+    /* toast */
+    .toast { position:fixed; right:18px; bottom:18px; background:#222; color:#fff; padding:10px 12px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.25); z-index:9999; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Lucky Group</h1>
-        <h2>Happy Birthday Rupesh</h2>
-        <label for="member">Select Member: </label>
-        <select id="member">
-            <option value="RAJEESH RAJ">Jayan</option>
-            <option value="VIJITH K T V">Rupesh</option>
-            <option value="VIJITH K">Raju</option>
-            <option value="SAJEESH P">Thekkan</option>
-            <option value="RUPESH S">Ranji</option>
-            <option value="RUPESH S">Shiju</option>
-        </select>
-        <input type="text" id="item" placeholder="Enter expense item">
-        <input type="number" id="expense" placeholder="Enter amount in ₹">
-        <button onclick="addExpense()">Add Expense</button>
-        <button onclick="calculateTotal()">Calculate Total</button>
-        <button onclick="clearExpenses()">Clear</button>
-        <button onclick="shareOnWhatsApp()">Share on WhatsApp</button>
-        <h2>Total Expenses: ₹<span id="total">0.00</span></h2>
-        <table>
-            <tr>
-                <th>Friend</th>
-                <th>Expense Item</th>
-                <th>Amount (₹)</th>
-            </tr>
-            <tbody id="expenseTable"></tbody>
-        </table>
-        <h2>Summary</h2>
-        <table>
-            <tr>
-                <th>Friend</th>
-                <th>Total Expense (₹)</th>
-                <th>Share to Pay/Receive (₹)</th>
-            </tr>
-            <tbody id="summaryTable"></tbody>
-        </table>
+  <div class="container">
+    <h1>Lucky Group — Offline</h1>
+    <h2>Happy Jouney</h2>
+
+    <label for="member">Select Member</label>
+    <select id="member">
+      <option value="Jayan">Jayan</option>
+      <option value="Rupesh">Rupesh</option>
+      <option value="Raju">Raju</option>
+      <option value="Thekkan">Thekkan</option>
+      <option value="Ranji">Ranji</option>
+      <option value="Shiju">Shiju</option>
+    </select>
+
+    <label for="item">Expense Item</label>
+    <input id="item" type="text" placeholder="Enter expense item">
+
+    <label for="expense">Amount (₹)</label>
+    <input id="expense" type="number" min="0" step="0.01" placeholder="Enter amount in ₹">
+
+    <div class="actions" aria-hidden="false">
+      <button id="addBtn">Add Expense</button>
+      <button id="calcBtn" class="secondary">Calculate Total</button>
+      <button id="clearBtn" class="warn">Clear All</button>
     </div>
-    <script>
-        const scriptURL = "https://script.google.com/macros/s/AKfycbwz8w_i9z3gNypL7AyNNJvEsPIuDmBfCOx92xwLjTw1FoWXgAZmxcrUD_wvR4Yn6PPW0w/exec";
 
-        function addExpense() {
-            let data = {
-                member: document.getElementById("member").value,
-                item: document.getElementById("item").value,
-                amount: parseFloat(document.getElementById("expense").value) || 0
-            };
-            fetch(scriptURL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            }).then(() => {
-                alert("Expense saved!");
-                loadExpenses();
-            });
-        }
+    <div class="actions" style="margin-top:8px">
+      <button id="exportBtn" class="secondary">Export CSV</button>
+      <button id="importBtn" class="secondary">Import CSV</button>
+      <button id="shareBtn">Share Summary</button>
+    </div>
 
-        function calculateTotal() {
-            fetch(scriptURL)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("total").innerText = data.totalExpense.toFixed(2);
-                updateSummary(data.memberTotals, data.totalExpense);
-            });
-        }
+    <input id="fileInput" type="file" accept=".csv" style="display:none">
 
-        function loadExpenses() {
-            fetch(scriptURL)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("total").innerText = data.totalExpense.toFixed(2);
-                let tableBody = document.getElementById("expenseTable");
-                tableBody.innerHTML = "";
-                data.expenses.slice(1).forEach(row => {
-                    let tr = `<tr><td>${row[0]}</td><td>${row[1]}</td><td>₹${row[2]}</td></tr>`;
-                    tableBody.innerHTML += tr;
-                });
-                updateSummary(data.memberTotals, data.totalExpense);
-            });
-        }
+    <h2>Total Expenses: ₹<span id="total">0.00</span></h2>
 
-        function updateSummary(memberTotals, totalExpense) {
-            let share = totalExpense / Object.keys(memberTotals).length;
-            let summaryBody = document.getElementById("summaryTable");
-            summaryBody.innerHTML = "";
-            Object.keys(memberTotals).forEach(member => {
-                let balance = memberTotals[member] - share;
-                let row = `<tr><td>${member}</td><td>₹${memberTotals[member].toFixed(2)}</td><td>${balance >= 0 ? "₹+" + balance.toFixed(2) : "₹" + balance.toFixed(2)}</td></tr>`;
-                summaryBody.innerHTML += row;
-            });
-        }
+    <table aria-label="Expense list">
+      <thead><tr><th>Friend</th><th>Expense Item</th><th>Amount (₹)</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody id="expenseTable"></tbody>
+    </table>
 
-        function clearExpenses() {
-            fetch(scriptURL, { method: "DELETE" }).then(() => {
-                alert("Expenses cleared!");
-                loadExpenses();
-            });
-        }
+    <h2>Summary</h2>
+    <table aria-label="Summary">
+      <thead><tr><th>Friend</th><th>Total Expense (₹)</th><th>Share to Pay/Receive (₹)</th></tr></thead>
+      <tbody id="summaryTable"></tbody>
+    </table>
 
-        window.onload = loadExpenses;
-    </script>
+    <p class="muted">Offline storage: data is stored locally in your browser. Export to CSV to save a backup or import to restore.</p>
+  </div>
+
+  <script>
+  // Offline Expense Tracker using localStorage
+  const STORAGE_KEY = 'offline_expenses_v1';
+  const membersSelect = document.getElementById('member');
+  const itemInput = document.getElementById('item');
+  const amountInput = document.getElementById('expense');
+  const expenseTable = document.getElementById('expenseTable');
+  const summaryTable = document.getElementById('summaryTable');
+  const totalEl = document.getElementById('total');
+  const fileInput = document.getElementById('fileInput');
+
+  // Toast notification
+  function notify(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=> t.remove(), 2200);
+  }
+
+  // Load expenses from localStorage
+  function loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr;
+    } catch (e) {
+      console.error('load error', e);
+      return [];
+    }
+  }
+
+  // Save expenses array to localStorage
+  function saveToStorage(arr) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  }
+
+  // Add expense
+  function addExpense() {
+    const member = membersSelect.value.trim();
+    const item = itemInput.value.trim();
+    const amount = parseFloat(amountInput.value);
+
+    if (!member) { notify('Select a member'); return; }
+    if (!item) { notify('Enter an expense item'); return; }
+    if (isNaN(amount) || amount <= 0) { notify('Enter a valid amount > 0'); return; }
+
+    const expenses = loadFromStorage();
+    const entry = {
+      id: Date.now().toString(36) + Math.floor(Math.random()*1000),
+      member,
+      item,
+      amount: Number(amount),
+      date: new Date().toISOString()
+    };
+    expenses.push(entry);
+    saveToStorage(expenses);
+
+    // reset inputs
+    itemInput.value = '';
+    amountInput.value = '';
+    notify('Expense added (offline)');
+    renderAll();
+  }
+
+  // Render the expense table and summary
+  function renderAll() {
+    const expenses = loadFromStorage();
+    // Expense rows
+    expenseTable.innerHTML = '';
+    expenses.forEach(e => {
+      const tr = document.createElement('tr');
+      const date = new Date(e.date);
+      tr.innerHTML = `<td>${escapeHtml(e.member)}</td>
+                      <td>${escapeHtml(e.item)}</td>
+                      <td>₹${Number(e.amount).toFixed(2)}</td>
+                      <td title="${date.toLocaleString()}">${date.toDateString()}</td>
+                      <td><button data-id="${e.id}" class="delBtn" style="padding:6px;border-radius:6px;background:#dc3545;color:#fff;border:none;cursor:pointer">Delete</button></td>`;
+      expenseTable.appendChild(tr);
+    });
+
+    // Attach delete handlers
+    document.querySelectorAll('.delBtn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        const id = ev.currentTarget.getAttribute('data-id');
+        deleteExpense(id);
+      });
+    });
+
+    // Totals & summary
+    const total = expenses.reduce((s, r) => s + Number(r.amount || 0), 0);
+    totalEl.innerText = Number(total).toFixed(2);
+
+    const memberTotals = {};
+    // ensure all select members appear in summary even if zero
+    Array.from(membersSelect.options).forEach(opt => { memberTotals[opt.value] = 0; });
+
+    expenses.forEach(r => {
+      memberTotals[r.member] = (memberTotals[r.member] || 0) + Number(r.amount || 0);
+    });
+
+    // compute equal share
+    const members = Object.keys(memberTotals);
+    const share = members.length ? (total / members.length) : 0;
+
+    summaryTable.innerHTML = '';
+    members.forEach(m => {
+      const paid = Number(memberTotals[m] || 0);
+      const balance = paid - share;
+      const balText = (balance >= 0 ? '₹+' : '₹') + Math.abs(balance).toFixed(2);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${escapeHtml(m)}</td><td>₹${paid.toFixed(2)}</td><td>${balText}</td>`;
+      summaryTable.appendChild(tr);
+    });
+  }
+
+  // Delete single expense by id
+  function deleteExpense(id) {
+    let expenses = loadFromStorage();
+    expenses = expenses.filter(e => e.id !== id);
+    saveToStorage(expenses);
+    notify('Expense deleted');
+    renderAll();
+  }
+
+  // Clear all expenses
+  function clearAll() {
+    if (!confirm('Clear ALL expenses? This cannot be undone.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    notify('All expenses cleared');
+    renderAll();
+  }
+
+  // Export CSV
+  function exportCSV() {
+    const expenses = loadFromStorage();
+    if (!expenses.length) { notify('No expenses to export'); return; }
+    const header = ['id','member','item','amount','date'];
+    const rows = [header.join(',')].concat(expenses.map(e => {
+      // escape commas and quotes
+      return [
+        csvEscape(e.id),
+        csvEscape(e.member),
+        csvEscape(e.item),
+        Number(e.amount).toFixed(2),
+        csvEscape(e.date)
+      ].join(',');
+    }));
+    const csv = rows.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const now = new Date();
+    a.download = `expenses_${now.toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('Exported CSV');
+  }
+
+  // Import CSV (simple parser)
+  function importCSVFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length);
+      if (!lines.length) { notify('CSV empty'); return; }
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const idx = (name) => header.indexOf(name);
+      const idIdx = idx('id');
+      const memberIdx = idx('member');
+      const itemIdx = idx('item');
+      const amountIdx = idx('amount');
+      const dateIdx = idx('date');
+
+      const imported = [];
+      for (let i=1;i<lines.length;i++) {
+        const parts = splitCsvLine(lines[i]);
+        if (!parts.length) continue;
+        const entry = {
+          id: (idIdx >=0 ? parts[idIdx] : Date.now().toString(36) + Math.floor(Math.random()*1000)),
+          member: (memberIdx >=0 ? parts[memberIdx] : parts[0] || 'Unknown'),
+          item: (itemIdx >=0 ? parts[itemIdx] : parts[1] || 'Item'),
+          amount: Number(amountIdx >=0 ? parseFloat(parts[amountIdx]) : parseFloat(parts[2] || 0)) || 0,
+          date: (dateIdx >=0 ? parts[dateIdx] : new Date().toISOString())
+        };
+        imported.push(entry);
+      }
+      // merge with existing (append)
+      const current = loadFromStorage();
+      const merged = current.concat(imported);
+      saveToStorage(merged);
+      notify(`Imported ${imported.length} rows`);
+      renderAll();
+    };
+    reader.onerror = () => notify('Failed to read file');
+    reader.readAsText(file);
+  }
+
+  // Helpers for CSV escaping/parsing
+  function csvEscape(s) {
+    if (s === null || s === undefined) return '';
+    s = String(s);
+    if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  // Split a CSV line, supporting quoted fields
+  function splitCsvLine(line) {
+    const res = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i=0;i<line.length;i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i+1] === '"') { cur += '"'; i++; } // escaped quote
+          else inQuotes = false;
+        } else cur += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ',') { res.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    res.push(cur);
+    return res;
+  }
+
+  // Share summary: prefer Web Share API, fallback to wa.me link
+  function shareSummary() {
+    const expenses = loadFromStorage();
+    const total = expenses.reduce((s, r) => s + Number(r.amount || 0), 0);
+    const memberTotals = {};
+    Array.from(membersSelect.options).forEach(o => memberTotals[o.value] = 0);
+    expenses.forEach(e => memberTotals[e.member] = (memberTotals[e.member] || 0) + Number(e.amount || 0));
+    const members = Object.keys(memberTotals);
+    const share = members.length ? total / members.length : 0;
+
+    let text = `Lucky Group - Expense Summary (${new Date().toLocaleDateString()})\nTotal: ₹${total.toFixed(2)}\n\n`;
+    members.forEach(m => {
+      const paid = Number(memberTotals[m] || 0);
+      const bal = paid - share;
+      const balText = (bal >= 0 ? `Receive ₹${Math.abs(bal).toFixed(2)}` : `Pay ₹${Math.abs(bal).toFixed(2)}`);
+      text += `${m}: Paid ₹${paid.toFixed(2)} — ${balText}\n`;
+    });
+
+    // Try Web Share API
+    if (navigator.share) {
+      navigator.share({ title: 'Expense Summary', text }).then(() => {}).catch(() => {
+        // fallback to whatsapp link
+        openWhatsApp(text);
+      });
+    } else {
+      openWhatsApp(text);
+    }
+  }
+
+  function openWhatsApp(text) {
+    // encode and open wa.me link
+    const encoded = encodeURIComponent(text);
+    const url = `https://wa.me/?text=${encoded}`;
+    window.open(url, '_blank');
+  }
+
+  // small HTML escape to avoid injection in table
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  }
+
+  // Attach handlers
+  document.getElementById('addBtn').addEventListener('click', addExpense);
+  document.getElementById('calcBtn').addEventListener('click', renderAll);
+  document.getElementById('clearBtn').addEventListener('click', clearAll);
+  document.getElementById('exportBtn').addEventListener('click', exportCSV);
+  document.getElementById('importBtn').addEventListener('click', ()=> fileInput.click());
+  document.getElementById('shareBtn').addEventListener('click', shareSummary);
+  fileInput.addEventListener('change', (ev) => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    if (!confirm('Importing will append rows to existing local data. Continue?')) { fileInput.value = ''; return; }
+    importCSVFile(f);
+    fileInput.value = '';
+  });
+
+  // Initial render
+  renderAll();
+  </script>
 </body>
-</html>
-
+    </html>
