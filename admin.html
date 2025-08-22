@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Varavu - Chilavu (Admin)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Favicon -->
+<link rel="icon" type="image/png" href="favicon.png">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4CAF50">
+
+<!-- iOS Support -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    header { background: #333; color: white; padding: 1rem; text-align: center; }
+    main { padding: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { padding: 0.7rem; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #444; color: white; }
+    tr:hover { background: #f7f7f7; }
+    .deleteBtn { background: red; color: white; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; }
+    .table-container { overflow-x: auto; }
+    #totals { margin-top: 1rem; font-weight: bold; background: #fff; padding: 0.8rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .positive { color: green; font-weight: bold; }
+    .negative { color: red; font-weight: bold; }
+    button.exportBtn { margin-top: 1rem; padding: 0.6rem 1rem; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    button.exportBtn:hover { background: #555; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Varavu - Chilavu (Admin)</h1>
+  </header>
+  <main>
+    <h2>All Expenses</h2>
+    <div class="table-container">
+      <table id="expensesTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="expensesBody"></tbody>
+      </table>
+    </div>
+
+    <div id="totals">
+      <div><b>Total:</b> ₹0 | <b>Per Head:</b> ₹0</div>
+      <div class="table-container">
+        <table id="memberTable">
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Paid</th>
+              <th>Balance</th>
+            </tr>
+          </thead>
+          <tbody id="memberTotals"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="exportBtn" onclick="exportReport()">Export Full Report</button>
+    <button class="exportBtn" onclick="exportSettlement()">Export Settlement Summary</button>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { 
+      getFirestore, collection, deleteDoc, doc, onSnapshot, query, orderBy 
+    } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJ4oMxrYzcBfK_34EBqHCrH0lweVFdzjI",
+      authDomain: "varavu-chilavu.firebaseapp.com",
+      projectId: "varavu-chilavu",
+      storageBucket: "varavu-chilavu.appspot.com",
+      messagingSenderId: "69022331814",
+      appId: "1:69022331814:web:4c33a907c5a47970611567"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const expensesCol = collection(db, "expenses");
+
+    let latestData = [];
+    let latestSummary = { total: 0, perHead: 0, memberTotals: {} };
+
+    function renderExpenses(snapshot) {
+      const tbody = document.getElementById("expensesBody");
+      tbody.innerHTML = "";
+
+      let total = 0;
+      const members = new Set();
+      const memberTotals = {};
+
+      latestData = [];
+
+      snapshot.forEach(docSnap => {
+        const exp = docSnap.data();
+        latestData.push(exp);
+        const tr = document.createElement("tr");
+
+        const tdUser = document.createElement("td");
+        tdUser.textContent = exp.user;
+        members.add(exp.user);
+        if (!memberTotals[exp.user]) memberTotals[exp.user] = 0;
+        memberTotals[exp.user] += Math.round(parseFloat(exp.amount));
+        tr.appendChild(tdUser);
+
+        const tdAmt = document.createElement("td");
+        tdAmt.textContent = "₹" + Math.round(exp.amount);
+        tr.appendChild(tdAmt);
+
+        const tdDesc = document.createElement("td");
+        tdDesc.textContent = exp.description;
+        tr.appendChild(tdDesc);
+
+        const tdDel = document.createElement("td");
+        const delBtn = document.createElement("button");
+        delBtn.className = "deleteBtn";
+        delBtn.textContent = "Delete";
+        delBtn.onclick = async () => {
+          await deleteDoc(doc(db, "expenses", docSnap.id));
+        };
+        tdDel.appendChild(delBtn);
+        tr.appendChild(tdDel);
+
+        tbody.appendChild(tr);
+        total += Math.round(parseFloat(exp.amount));
+      });
+
+      const perHead = members.size > 0 ? Math.round(total / members.size) : 0;
+      document.querySelector("#totals div").textContent = `Total: ₹${total} | Per Head: ₹${perHead}`;
+
+      const memberBody = document.getElementById("memberTotals");
+      memberBody.innerHTML = "";
+      for (const [member, amt] of Object.entries(memberTotals)) {
+        const balance = Math.round(amt - perHead);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${member}</td>
+          <td>₹${amt}</td>
+          <td class="${balance >= 0 ? 'positive' : 'negative'}">
+            ${balance >= 0 ? '+₹' + balance : '-₹' + Math.abs(balance)}
+          </td>
+        `;
+        memberBody.appendChild(row);
+      }
+
+      latestSummary = { total, perHead, memberTotals };
+    }
+
+    window.onload = () => {
+      const q = query(expensesCol, orderBy("createdAt", "asc"));
+      onSnapshot(q, renderExpenses);
+    };
+
+    // Export full report
+    window.exportReport = () => {
+      const { total, perHead, memberTotals } = latestSummary;
+
+      let html = `
+        <html><head><meta charset="UTF-8"><title>Expense Report</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: Arial; padding: 1rem; background:#f9f9f9; }
+          h2,h3 { margin-top: 1rem; }
+          table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          th, td { padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: left; }
+          th { background: #444; color: white; }
+          .positive { color: green; font-weight:bold; }
+          .negative { color: red; font-weight:bold; }
+        </style></head><body>
+        <h2>Varavu - Chilavu Report</h2>
+        <p><em>Generated on ${new Date().toLocaleString()}</em></p>
+        <h3>All Expenses</h3>
+        <table><thead><tr><th>Name</th><th>Amount</th><th>Description</th></tr></thead><tbody>
+      `;
+
+      latestData.forEach(exp => {
+        html += `<tr><td>${exp.user}</td><td>₹${Math.round(exp.amount)}</td><td>${exp.description}</td></tr>`;
+      });
+
+      html += `</tbody></table>
+        <h3>Summary</h3>
+        <p>Total: ₹${Math.round(total)} | Per Head: ₹${Math.round(perHead)}</p>
+        <table><thead><tr><th>Member</th><th>Paid</th><th>Balance</th></tr></thead><tbody>`;
+
+      for (const [member, amt] of Object.entries(memberTotals)) {
+        const balance = Math.round(amt - perHead);
+        html += `
+          <tr>
+            <td>${member}</td>
+            <td>₹${Math.round(amt)}</td>
+            <td class="${balance >= 0 ? 'positive' : 'negative'}">
+              ${balance >= 0 ? '+₹' + balance : '-₹' + Math.abs(balance)}
+            </td>
+          </tr>`;
+      }
+
+      html += `</tbody></table></body></html>`;
+
+      const blob = new Blob([html], { type: "text/html" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Expense_Report.html";
+      link.click();
+    };
+
+    // Export settlement only
+    window.exportSettlement = () => {
+      const { total, perHead, memberTotals } = latestSummary;
+
+      let html = `
+        <html><head><meta charset="UTF-8"><title>Settlement Summary</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: Arial; padding: 1rem; background:#f9f9f9; }
+          h2 { margin-top: 1rem; }
+          table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          th, td { padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: left; }
+          th { background: #444; color: white; }
+          .positive { color: green; font-weight:bold; }
+          .negative { color: red; font-weight:bold; }
+        </style></head><body>
+        <h2>Settlement Summary</h2>
+        <p>Total: ₹${Math.round(total)} | Per Head: ₹${Math.round(perHead)}</p>
+        <table><thead><tr><th>Member</th><th>Paid</th><th>Balance</th></tr></thead><tbody>
+      `;
+
+      for (const [member, amt] of Object.entries(memberTotals)) {
+        const balance = Math.round(amt - perHead);
+        html += `
+          <tr>
+            <td>${member}</td>
+            <td>₹${Math.round(amt)}</td>
+            <td class="${balance >= 0 ? 'positive' : 'negative'}">
+              ${balance >= 0 ? '+₹' + balance : '-₹' + Math.abs(balance)}
+            </td>
+          </tr>`;
+      }
+
+      html += `</tbody></table></body></html>`;
+
+      const blob = new Blob([html], { type: "text/html" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Settlement_Summary.html";
+      link.click();
+    };
+  </script>
+</body>
+</html>
