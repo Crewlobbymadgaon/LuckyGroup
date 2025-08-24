@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Tour Expense</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <style>
     body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; }
     header { background:#4CAF50; color:white; padding:1rem; text-align:center; }
@@ -40,6 +39,14 @@
       <button id="loginBtn">Join</button>
     </div>
 
+    <div id="waitingDiv" style="display:none; text-align:center; font-weight:bold; color:#555;">
+      Waiting for admin approval...
+    </div>
+
+    <div id="rejectedDiv" style="display:none; text-align:center; font-weight:bold; color:red;">
+      Rejected by admin. Please try with another name.
+    </div>
+
     <div id="appDiv" style="display:none;">
       <h2>Add Expense</h2>
       <input id="amount" type="number" placeholder="Amount">
@@ -62,7 +69,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
     import { 
-      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, getDoc 
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, getDoc, setDoc, getDocs 
     } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -101,9 +108,16 @@
           document.getElementById("tripName").textContent = t.name || "Unnamed Trip";
           document.getElementById("tripDate").textContent = t.date ? ddmmyyyy(new Date(t.date)) : "";
         }
+        await loadMembers();
       } else {
         document.getElementById("tripName").textContent = "No Active Trip";
       }
+    }
+
+    async function loadMembers() {
+      membersState.clear();
+      const membersSnap = await getDocs(collection(db, "trips", currentTripId, "members"));
+      membersSnap.forEach(d => membersState.add(d.id));
     }
 
     function render() {
@@ -134,7 +148,6 @@
           const tr = document.createElement("tr");
 
           if (e.user === currentUser) {
-            // Own row - allow inline editing
             const tdUser = document.createElement("td");
             tdUser.textContent = e.user;
 
@@ -191,7 +204,6 @@
             tr.appendChild(tdAction);
 
           } else {
-            // Others' row
             tr.innerHTML = `
               <td>${e.user}</td>
               <td>₹${e.amount}</td>
@@ -225,28 +237,51 @@
       });
     }
 
-    function login(name) {
+    async function login(name) {
       currentUser = name;
-      localStorage.setItem("user", name);
-      document.getElementById("currentUserDisplay").innerText = "Hello, " + name;
-      document.getElementById("loginDiv").style.display = "none";
-      document.getElementById("appDiv").style.display = "block";
-      membersState.add(name);
+      const memberRef = doc(db, "trips", currentTripId, "members", name);
 
-      const q = query(expensesCol, orderBy("createdAt", "asc"));
-      onSnapshot(q, snap => {
-        expensesState = [];
-        snap.forEach(d => {
-          expensesState.push({ id: d.id, ...d.data() });
-          membersState.add(d.data().user);
-        });
-        render();
+      await setDoc(memberRef, {
+        joinedAt: Date.now(),
+        status: "pending"
+      }, { merge: true });
+
+      document.getElementById("loginDiv").style.display = "none";
+      document.getElementById("waitingDiv").style.display = "block";
+      document.getElementById("rejectedDiv").style.display = "none";
+      document.getElementById("appDiv").style.display = "none";
+      document.getElementById("currentUserDisplay").innerText = "Waiting for admin approval...";
+
+      onSnapshot(memberRef, snap => {
+        if (!snap.exists()) {
+          document.getElementById("waitingDiv").style.display = "none";
+          document.getElementById("rejectedDiv").style.display = "block";
+          document.getElementById("currentUserDisplay").innerText = "";
+          localStorage.removeItem("user");
+          return;
+        }
+        const data = snap.data();
+        if (data.status === "approved") {
+          localStorage.setItem("user", name);
+          document.getElementById("waitingDiv").style.display = "none";
+          document.getElementById("rejectedDiv").style.display = "none";
+          document.getElementById("appDiv").style.display = "block";
+          document.getElementById("currentUserDisplay").innerText = "Hello, " + name;
+
+          const q = query(expensesCol, orderBy("createdAt", "asc"));
+          onSnapshot(q, snap => {
+            expensesState = [];
+            snap.forEach(d => {
+              expensesState.push({ id: d.id, ...d.data() });
+            });
+            render();
+          });
+        }
       });
     }
 
     window.onload = async () => {
       await loadTrip();
-
       const saved = localStorage.getItem("user");
       if (saved) login(saved);
 
