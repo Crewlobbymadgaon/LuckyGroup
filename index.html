@@ -2,99 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Varavu - Chilavu (Members)</title>
+  <title>Tour Expense</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Favicon -->
-<link rel="icon" type="image/png" href="favicon.png">
 
-<!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4CAF50">
-
-<!-- iOS Support -->
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
-    header { background: #4CAF50; color: white; padding: 1rem; text-align: center; }
-    main { padding: 1rem; }
-    label { display: block; margin-top: 1rem; }
-    input, button { width: 100%; padding: 0.6rem; margin-top: 0.3rem; border-radius: 6px; border: 1px solid #ccc; }
-    button { background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    th, td { padding: 0.6rem; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #f1f1f1; }
-    tr:hover { background: #fafafa; }
-    .deleteBtn { background: red; color: white; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; }
-    .editable { cursor: pointer; border-bottom: 1px dashed transparent; }
-    .editable:hover { border-bottom: 1px dashed #333; }
-    .table-container { overflow-x: auto; }
-    #totals { margin-top: 1rem; font-weight: bold; background: #fff; padding: 0.8rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .positive { color: green; }
-    .negative { color: red; }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; }
+    header { background:#4CAF50; color:white; padding:1rem; text-align:center; }
+    header h1 { margin:0; }
+    #tripInfo { font-size:1rem; margin-top:0.3rem; }
+    main { padding:1rem; max-width:800px; margin:auto; }
+    input, button { width:100%; padding:0.6rem; margin:0.3rem 0; border-radius:6px; border:1px solid #ccc; }
+    button { background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer; }
+    button:hover { background:#45a049; }
+    table { width:100%; border-collapse:collapse; background:white; margin-top:0.5rem; }
+    th, td { padding:0.6rem; border-bottom:1px solid #ddd; text-align:center; }
+    th { background:#f1f1f1; }
+    .date-heading { margin-top:1rem; font-weight:bold; }
+    .deleteBtn { background:red; color:#fff; border:none; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; }
+    .positive { color:green; }
+    .negative { color:red; }
+    .actionBtn { padding:0.3rem 0.6rem; border-radius:4px; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Varavu - Chilavu (Members)</h1>
+    <h1>Tour Expense</h1>
+    <div id="tripInfo">
+      <div id="tripName">Loading trip...</div>
+      <div id="tripDate"></div>
+    </div>
     <div id="currentUserDisplay"></div>
   </header>
+
   <main>
     <div id="loginDiv">
-      <label>Enter Your Name</label>
-      <input id="username" type="text" placeholder="Your name">
+      <input id="username" type="text" placeholder="Enter your name">
       <button id="loginBtn">Join</button>
     </div>
 
     <div id="appDiv" style="display:none;">
       <h2>Add Expense</h2>
-      <label>Amount</label>
-      <input id="amount" type="number">
-      <label>Description</label>
-      <input id="description" type="text">
+      <input id="amount" type="number" placeholder="Amount">
+      <input id="description" type="text" placeholder="Description">
+      <input id="date" type="date">
       <button id="addBtn">Add</button>
 
       <h2>Expenses</h2>
-      <div class="table-container">
-        <table id="expensesTable">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Amount</th>
-              <th>Description</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="expensesBody"></tbody>
-        </table>
-      </div>
+      <div id="expensesContainer"></div>
 
-      <div id="totals">
-        <div id="summaryLine">Total: ₹0 | Per Head: ₹0</div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Paid</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody id="memberTotals"></tbody>
-          </table>
-        </div>
-      </div>
+      <h2>Summary</h2>
+      <div id="summaryLine"></div>
+      <table>
+        <thead><tr><th>Member</th><th>Paid</th><th>Balance</th></tr></thead>
+        <tbody id="memberTotals"></tbody>
+      </table>
     </div>
   </main>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
     import { 
-      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy 
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, getDoc 
     } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBJ4oMxrYzcBfK_34EBqHCrH0lweVFdzjI",
       authDomain: "varavu-chilavu.firebaseapp.com",
@@ -106,103 +76,153 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const expensesCol = collection(db, "expenses");
 
     let currentUser = null;
+    let currentTripId = null;
+    let expensesCol = null;
+    let expensesState = [];
+    let membersState = new Set();
 
-    function makeEditable(td, docId, field, oldValue) {
-      td.onclick = null;
-      const input = document.createElement("input");
-      input.type = field === "amount" ? "number" : "text";
-      input.value = oldValue;
-      input.style.width = "100%";
-      input.onblur = async () => {
-        const newVal = input.value.trim();
-        if (newVal && newVal !== oldValue) {
-          await updateDoc(doc(db, "expenses", docId), { [field]: field === "amount" ? parseInt(newVal) : newVal });
+    function toInt(v) { return parseInt(v) || 0; }
+    function ddmmyyyy(ts) { return new Date(ts).toLocaleDateString("en-GB"); }
+
+    async function loadTrip() {
+      const metaDoc = await getDoc(doc(db, "meta", "currentTrip"));
+      if (metaDoc.exists()) {
+        currentTripId = metaDoc.data().tripId;
+        if (!currentTripId) {
+          document.getElementById("tripName").textContent = "No Active Trip";
+          return;
         }
-        td.textContent = field === "amount" ? "₹" + newVal : newVal;
-        td.className = "editable";
-        td.onclick = () => makeEditable(td, docId, field, newVal);
-      };
-      td.textContent = "";
-      td.appendChild(input);
-      input.focus();
+        expensesCol = collection(db, "trips", currentTripId, "expenses");
+        const tripDoc = await getDoc(doc(db, "trips", currentTripId));
+        if (tripDoc.exists()) {
+          const t = tripDoc.data();
+          document.getElementById("tripName").textContent = t.name || "Unnamed Trip";
+          document.getElementById("tripDate").textContent = t.date ? ddmmyyyy(new Date(t.date)) : "";
+        }
+      } else {
+        document.getElementById("tripName").textContent = "No Active Trip";
+      }
     }
 
-    function renderExpenses(snapshot) {
-      const tbody = document.getElementById("expensesBody");
-      tbody.innerHTML = "";
-
+    function render() {
+      const container = document.getElementById("expensesContainer");
+      container.innerHTML = "";
       let total = 0;
-      const members = new Set();
       const memberTotals = {};
 
-      snapshot.forEach(docSnap => {
-        const exp = docSnap.data();
-        const tr = document.createElement("tr");
-
-        // Name
-        const tdUser = document.createElement("td");
-        tdUser.textContent = exp.user;
-        members.add(exp.user);
-        if (!memberTotals[exp.user]) memberTotals[exp.user] = 0;
-        memberTotals[exp.user] += parseInt(exp.amount);
-        tr.appendChild(tdUser);
-
-        // Amount
-        const tdAmt = document.createElement("td");
-        tdAmt.textContent = "₹" + exp.amount;
-        if (exp.user === currentUser) {
-          tdAmt.className = "editable";
-          tdAmt.onclick = () => makeEditable(tdAmt, docSnap.id, "amount", exp.amount);
-        }
-        tr.appendChild(tdAmt);
-
-        // Description
-        const tdDesc = document.createElement("td");
-        tdDesc.textContent = exp.description;
-        if (exp.user === currentUser) {
-          tdDesc.className = "editable";
-          tdDesc.onclick = () => makeEditable(tdDesc, docSnap.id, "description", exp.description);
-        }
-        tr.appendChild(tdDesc);
-
-        // Delete button
-        const tdDel = document.createElement("td");
-        if (exp.user === currentUser) {
-          const delBtn = document.createElement("button");
-          delBtn.className = "deleteBtn";
-          delBtn.textContent = "Delete";
-          delBtn.onclick = async () => {
-            await deleteDoc(doc(db, "expenses", docSnap.id));
-          };
-          tdDel.appendChild(delBtn);
-        }
-        tr.appendChild(tdDel);
-
-        tbody.appendChild(tr);
-        total += parseInt(exp.amount);
+      // group by date
+      const grouped = {};
+      expensesState.forEach(e => {
+        const d = ddmmyyyy(e.date);
+        if (!grouped[d]) grouped[d] = [];
+        grouped[d].push(e);
       });
 
-      const perHead = members.size > 0 ? Math.round(total / members.size) : 0;
+      Object.keys(grouped).forEach(dateStr => {
+        const h = document.createElement("div");
+        h.className = "date-heading";
+        h.textContent = "📅 " + dateStr;
+        container.appendChild(h);
+
+        const table = document.createElement("table");
+        table.innerHTML = "<thead><tr><th>Name</th><th>Amount</th><th>Description</th><th></th></tr></thead><tbody></tbody>";
+        const tbody = table.querySelector("tbody");
+
+        grouped[dateStr].forEach(e => {
+          const tr = document.createElement("tr");
+
+          if (e.user === currentUser) {
+            // Own row - allow inline editing
+            const tdUser = document.createElement("td");
+            tdUser.textContent = e.user;
+
+            const tdAmt = document.createElement("td");
+            tdAmt.textContent = "₹" + e.amount;
+            tdAmt.style.cursor = "pointer";
+            tdAmt.onclick = () => {
+              const input = document.createElement("input");
+              input.type = "number";
+              input.value = e.amount;
+              input.style.width = "80px";
+              tdAmt.innerHTML = "";
+              tdAmt.appendChild(input);
+              input.focus();
+              input.onblur = async () => {
+                await updateDoc(doc(db, "trips", currentTripId, "expenses", e.id), {
+                  amount: toInt(input.value)
+                });
+              };
+              input.onkeypress = ev => { if (ev.key === "Enter") input.blur(); };
+            };
+
+            const tdDesc = document.createElement("td");
+            tdDesc.textContent = e.description;
+            tdDesc.style.cursor = "pointer";
+            tdDesc.onclick = () => {
+              const input = document.createElement("input");
+              input.type = "text";
+              input.value = e.description;
+              input.style.width = "150px";
+              tdDesc.innerHTML = "";
+              tdDesc.appendChild(input);
+              input.focus();
+              input.onblur = async () => {
+                await updateDoc(doc(db, "trips", currentTripId, "expenses", e.id), {
+                  description: input.value
+                });
+              };
+              input.onkeypress = ev => { if (ev.key === "Enter") input.blur(); };
+            };
+
+            const tdAction = document.createElement("td");
+            const delBtn = document.createElement("button");
+            delBtn.className = "actionBtn deleteBtn";
+            delBtn.textContent = "🗑️";
+            delBtn.onclick = async () => {
+              await deleteDoc(doc(db, "trips", currentTripId, "expenses", e.id));
+            };
+            tdAction.appendChild(delBtn);
+
+            tr.appendChild(tdUser);
+            tr.appendChild(tdAmt);
+            tr.appendChild(tdDesc);
+            tr.appendChild(tdAction);
+
+          } else {
+            // Others' row
+            tr.innerHTML = `
+              <td>${e.user}</td>
+              <td>₹${e.amount}</td>
+              <td>${e.description}</td>
+              <td></td>`;
+          }
+
+          tbody.appendChild(tr);
+          total += toInt(e.amount);
+          memberTotals[e.user] = (memberTotals[e.user] || 0) + toInt(e.amount);
+        });
+        container.appendChild(table);
+      });
+
+      const allMembers = Array.from(membersState);
+      const perHead = allMembers.length ? Math.round(total / allMembers.length) : 0;
       document.getElementById("summaryLine").textContent = `Total: ₹${total} | Per Head: ₹${perHead}`;
 
-      // Settlement table
-      const memberBody = document.getElementById("memberTotals");
-      memberBody.innerHTML = "";
-      for (const [member, amt] of Object.entries(memberTotals)) {
-        const balance = amt - perHead;
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${member}</td>
-          <td>₹${amt}</td>
-          <td class="${balance >= 0 ? 'positive' : 'negative'}">
-            ${balance >= 0 ? '+₹' + balance : '-₹' + Math.abs(balance)}
-          </td>
+      const tb = document.getElementById("memberTotals");
+      tb.innerHTML = "";
+      allMembers.forEach(name => {
+        const paid = memberTotals[name] || 0;
+        const bal = paid - perHead;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${name}</td>
+          <td>₹${paid}</td>
+          <td class="${bal >= 0 ? 'positive':'negative'}">${bal >= 0 ? "+₹"+bal : "-₹"+Math.abs(bal)}</td>
         `;
-        memberBody.appendChild(row);
-      }
+        tb.appendChild(tr);
+      });
     }
 
     function login(name) {
@@ -211,12 +231,22 @@
       document.getElementById("currentUserDisplay").innerText = "Hello, " + name;
       document.getElementById("loginDiv").style.display = "none";
       document.getElementById("appDiv").style.display = "block";
+      membersState.add(name);
 
       const q = query(expensesCol, orderBy("createdAt", "asc"));
-      onSnapshot(q, renderExpenses);
+      onSnapshot(q, snap => {
+        expensesState = [];
+        snap.forEach(d => {
+          expensesState.push({ id: d.id, ...d.data() });
+          membersState.add(d.data().user);
+        });
+        render();
+      });
     }
 
-    window.onload = () => {
+    window.onload = async () => {
+      await loadTrip();
+
       const saved = localStorage.getItem("user");
       if (saved) login(saved);
 
@@ -229,22 +259,20 @@
       document.getElementById("addBtn").onclick = async () => {
         const amt = document.getElementById("amount").value;
         const desc = document.getElementById("description").value;
-        if (!amt || !desc) return alert("Fill both");
-        await addDoc(expensesCol, { 
-          user: currentUser, 
-          amount: parseInt(amt), 
-          description: desc, 
+        const d = document.getElementById("date").value;
+        if (!amt || !desc || !d) return alert("Fill all fields");
+        await addDoc(expensesCol, {
+          user: currentUser,
+          amount: toInt(amt),
+          description: desc,
+          date: new Date(d).getTime(),
           createdAt: Date.now()
         });
-        document.getElementById("amount").value = "";
-        document.getElementById("description").value = "";
+        document.getElementById("amount").value="";
+        document.getElementById("description").value="";
+        document.getElementById("date").value="";
       };
     };
-
-    if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js")
-    .then(() => console.log("Service Worker Registered"));
-    }
   </script>
 </body>
-        </html>
+</html>
