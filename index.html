@@ -2,24 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Varavu - Chilavu</title>
+  <title>Tour Expense</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- Favicon (fallback PNG recommended) -->
-<link rel="icon" type="image/png" href="favicon.png">
-
-<!-- Apple (still requires PNG) -->
-<link rel="apple-touch-icon" href="icon-192.png">
-
-<!-- Manifest (contains WebP + PNG fallback) -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4CAF50">
-  
-
-<!-- iOS Support -->
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; }
     header { background:#4CAF50; color:white; padding:1rem; text-align:center; }
@@ -85,7 +69,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
     import { 
-      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, getDoc, setDoc, getDocs 
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, getDoc, setDoc
     } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -124,16 +108,25 @@
           document.getElementById("tripName").textContent = t.name || "Unnamed Trip";
           document.getElementById("tripDate").textContent = t.date ? ddmmyyyy(new Date(t.date)) : "";
         }
-        await loadMembers();
+        loadMembers(); // now live listener
       } else {
         document.getElementById("tripName").textContent = "No Active Trip";
       }
     }
 
-    async function loadMembers() {
-      membersState.clear();
-      const membersSnap = await getDocs(collection(db, "trips", currentTripId, "members"));
-      membersSnap.forEach(d => membersState.add(d.id));
+    // 🔥 FIXED: members now update live
+    function loadMembers() {
+      const membersCol = collection(db, "trips", currentTripId, "members");
+      onSnapshot(membersCol, (snap) => {
+        membersState.clear();
+        snap.forEach(d => {
+          const data = d.data();
+          if (data.status === "approved") {
+            membersState.add(d.id);
+          }
+        });
+        render(); // re-render summary when members change
+      });
     }
 
     function render() {
@@ -159,6 +152,8 @@
         const table = document.createElement("table");
         table.innerHTML = "<thead><tr><th>Name</th><th>Amount</th><th>Description</th><th></th></tr></thead><tbody></tbody>";
         const tbody = table.querySelector("tbody");
+
+        grouped[dateStr].sort((a, b) => a.createdAt - b.createdAt); // sort by createdAt
 
         grouped[dateStr].forEach(e => {
           const tr = document.createElement("tr");
@@ -235,8 +230,9 @@
       });
 
       const allMembers = Array.from(membersState);
-      const perHead = allMembers.length ? Math.round(total / allMembers.length) : 0;
-      document.getElementById("summaryLine").textContent = `Total: ₹${total} | Per Head: ₹${perHead}`;
+      const perHead = allMembers.length ? total / allMembers.length : 0;
+      document.getElementById("summaryLine").textContent = 
+        `Total: ₹${total} | Per Head: ₹${perHead.toFixed(2)}`;
 
       const tb = document.getElementById("memberTotals");
       tb.innerHTML = "";
@@ -247,7 +243,7 @@
         tr.innerHTML = `
           <td>${name}</td>
           <td>₹${paid}</td>
-          <td class="${bal >= 0 ? 'positive':'negative'}">${bal >= 0 ? "+₹"+bal : "-₹"+Math.abs(bal)}</td>
+          <td class="${bal >= 0 ? 'positive':'negative'}">${bal >= 0 ? "+₹"+bal.toFixed(2) : "-₹"+Math.abs(bal).toFixed(2)}</td>
         `;
         tb.appendChild(tr);
       });
@@ -257,10 +253,14 @@
       currentUser = name;
       const memberRef = doc(db, "trips", currentTripId, "members", name);
 
-      await setDoc(memberRef, {
-        joinedAt: Date.now(),
-        status: "pending"
-      }, { merge: true });
+      // avoid resetting approved members back to pending
+      const existing = await getDoc(memberRef);
+      if (!existing.exists() || existing.data().status !== "approved") {
+        await setDoc(memberRef, {
+          joinedAt: Date.now(),
+          status: "pending"
+        }, { merge: true });
+      }
 
       document.getElementById("loginDiv").style.display = "none";
       document.getElementById("waitingDiv").style.display = "block";
@@ -326,4 +326,4 @@
     };
   </script>
 </body>
-</html>
+  </html>
