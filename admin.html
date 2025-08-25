@@ -14,12 +14,13 @@
 <!-- Manifest (contains WebP + PNG fallback) -->
 
 <meta name="theme-color" content="#4CAF50">
- <link rel="manifest" href="manifest-admin.json">
+<link rel="manifest" href="manifest-admin.json">
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw-admin.js", { scope: "./" });
 }
 </script>
+
 
 
 <!-- iOS Support -->
