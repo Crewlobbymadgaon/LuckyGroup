@@ -2,10 +2,10 @@ self.addEventListener("install", e => {
   e.waitUntil(
     caches.open("vc-admin-v1").then(cache => {
       return cache.addAll([
-        "/admin.html",
-        "/manifest-admin.json",
-        "/icon-admin-192.png",
-        "/icon-admin-512.png"
+        "./admin.html",
+        "./manifest-admin.json",
+        "./icon-admin-192.png",
+        "./icon-admin-512.png"
       ]);
     })
   );
