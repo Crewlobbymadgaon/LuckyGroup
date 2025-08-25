@@ -12,9 +12,14 @@
 <link rel="apple-touch-icon" href="icon-admin-192.png">
 
 <!-- Manifest (contains WebP + PNG fallback) -->
-<link rel="manifest" href="manifest-admin.json">
+
 <meta name="theme-color" content="#4CAF50">
-  
+ <link rel="manifest" href="manifest-admin.json">
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw-admin.js", { scope: "/admin/" });
+}
+</script> 
 
 <!-- iOS Support -->
 <link rel="apple-touch-icon" href="icon-admin-192.png">
