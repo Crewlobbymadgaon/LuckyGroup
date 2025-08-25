@@ -1,9 +1,9 @@
 {
   "id": "vc-admin",
   "name": "Varavu - Chilavu (Admin)",
-  "short_name": "VC Admin",
-  "start_url": "./admin.html",
-  "scope": "./admin/",
+  "short_name": "Tour Admin",
+  "start_url": "/admin.html",
+  "scope": "/admin.html",
   "display": "standalone",
   "theme_color": "#4CAF50",
   "background_color": "#ffffff",
