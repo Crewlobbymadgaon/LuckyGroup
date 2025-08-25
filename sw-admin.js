@@ -1,17 +1,13 @@
-self.addEventListener("install", (e) => {
+self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open("vc-admin-cache").then((cache) => {
-      return cache.addAll([
-        "/admin.html",
-        "/icon-admin-192.png",
-        "/icon-admin-512.png"
-      ]);
+    caches.open("vc-admin-v1").then(cache => {
+      return cache.addAll(["./admin.html", "./manifest-admin.json", "./icon-admin-192.png"]);
     })
   );
 });
 
-self.addEventListener("fetch", (e) => {
+self.addEventListener("fetch", e => {
   e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request))
+    caches.match(e.request).then(resp => resp || fetch(e.request))
   );
 });
