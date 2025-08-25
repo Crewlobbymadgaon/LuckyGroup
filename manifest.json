@@ -3,7 +3,7 @@
   "name": "Varavu - Chilavu",
   "short_name": "Tour",
   "start_url": "./index.html",
-  "scope": "./",
+  "scope": "./user/",
   "display": "standalone",
   "theme_color": "#4CAF50",
   "background_color": "#ffffff",
