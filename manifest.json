@@ -1,25 +1,27 @@
 {
-  "name": "Tour-Expense",
+  "id": "/user",
+  "name": "Tour Expense",
   "short_name": "Tour",
   "start_url": "index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4CAF50",
   "icons": [
     {
-      "src": "icon-192.webp",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/webp"
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     },
     {
       "src": "icon-512.webp",
       "sizes": "512x512",
       "type": "image/webp"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
     }
   ]
 }
