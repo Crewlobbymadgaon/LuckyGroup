@@ -1,10 +1,9 @@
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open("vc-cache").then((cache) => {
+    caches.open("vc-user-cache").then((cache) => {
       return cache.addAll([
         "/",
         "/index.html",
-        "/admin.html",
         "/favicon.png",
         "/icon-192.png",
         "/icon-512.png"
