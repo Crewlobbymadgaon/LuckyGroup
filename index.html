@@ -17,10 +17,10 @@
   
 <script>
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw-user.js", { scope: "/index.html" });
+  navigator.serviceWorker.register("./sw-user.js", { scope: "./" });
 }
 </script>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="./manifest.json">
 
 <!-- iOS Support -->
 <link rel="apple-touch-icon" href="icon-192.png">
