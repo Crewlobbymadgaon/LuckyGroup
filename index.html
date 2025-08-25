@@ -12,10 +12,15 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <!-- Manifest (contains WebP + PNG fallback) -->
-<link rel="manifest" href="manifest.json">
+
 <meta name="theme-color" content="#4CAF50">
   
-
+<link rel="manifest" href="manifest.json">
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw-user.js", { scope: "/" });
+}
+</script>
 <!-- iOS Support -->
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
