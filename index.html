@@ -18,9 +18,10 @@
 <link rel="manifest" href="./manifest.json">
 <script>
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw-user.js", { scope: "./" });
+  navigator.serviceWorker.register("./sw-user.js", { scope: "./index.html" });
 }
 </script>
+
 
 
 <!-- iOS Support -->
