@@ -21,7 +21,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
-   body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; }
     header { background:#4CAF50; color:white; padding:1rem; text-align:center; }
     header h1 { margin:0; }
     main { padding:1rem; max-width:1000px; margin:auto; }
@@ -42,12 +42,16 @@
                  border-radius:4px; cursor:pointer; }
     .approveBtn { background:green; color:#fff; border:none; padding:0.3rem 0.6rem;
                   border-radius:4px; cursor:pointer; margin-right:4px; }
+    .rejectBtn { background:#f39c12; color:#fff; border:none; padding:0.3rem 0.6rem;
+                 border-radius:4px; cursor:pointer; }
     .positive { color:green; }
     .negative { color:red; }
     .date-header { background:#e3f2fd; font-weight:bold; text-align:left; padding:0.5rem; }
-
-    #tripList { display:none; margin-top:0.8rem; }
     .trip-item { display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; }
+
+    /* Pending box */
+    #pendingApprovals { padding:1rem; background:#fff3cd; border:1px solid #ffeeba; border-radius:8px; display:none; }
+    #approvalList .row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; }
   </style>
 </head>
 <body>
@@ -57,40 +61,55 @@
   </header>
 
   <main>
-    <!-- Trip Selection -->
+    <!-- 🔹 Pending Approvals (ABOVE Trips) -->
+    <div id="pendingApprovals" class="card">
+      <h2>Pending Approvals</h2>
+      <div id="approvalList"></div>
+    </div>
+
+    <!-- 🔹 Trip Selection -->
     <div class="card center">
       <h2>Trips</h2>
       <select id="tripSelect"></select>
       <button id="closeTripBtn" class="danger" style="margin-top:0.5rem;">Close Active Trip</button>
       <button id="deleteTripBtn" class="danger" style="margin-top:0.5rem; display:none;">Delete Trip</button>
       <button id="exportBtn" class="secondary" style="margin-top:0.5rem;">⬇ Export to HTML</button>
-      <div id="tripList"></div>
+      <div id="tripList" style="display:none; margin-top:0.8rem;"></div>
     </div>
 
-    <!-- Expenses -->
+    <!-- 🔹 Expenses -->
     <div class="card">
       <h2>All Expenses</h2>
       <div id="expensesContainer"></div>
     </div>
 
-    <!-- Totals -->
+    <!-- 🔹 Totals + Summary (APPROVED ONLY) -->
     <div class="card">
       <h2>Summary</h2>
       <div id="totals" style="text-align:center;font-weight:bold;">Total: ₹0 | Per Head: ₹0</div>
       <table>
-        <thead><tr><th>Member</th><th>Paid</th><th>Balance</th><th>Action</th></tr></thead>
+        <thead>
+          <tr><th>Member</th><th>Paid</th><th>Balance</th><th>Action</th></tr>
+        </thead>
         <tbody id="memberTotals"></tbody>
       </table>
+    </div>
+
+    <!-- 🔹 Rejected Members (collapsible, NOT always visible) -->
+    <div class="card" id="rejectedBox" style="display:none;">
+      <h2 id="rejectedToggle" style="cursor:pointer;">Rejected Members ▼</h2>
+      <div id="rejectedList" style="display:none; margin-top:0.5rem;"></div>
     </div>
   </main>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
     import {
-      getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+      getFirestore, collection, doc, updateDoc, deleteDoc,
       onSnapshot, getDocs, getDoc, setDoc, query, orderBy, writeBatch
     } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
+    // --- Firebase ---
     const firebaseConfig = {
       apiKey: "AIzaSyBJ4oMxrYzcBfK_34EBqHCrH0lweVFdzjI",
       authDomain: "varavu-chilavu.firebaseapp.com",
@@ -99,25 +118,41 @@
       messagingSenderId: "69022331814",
       appId: "1:69022331814:web:4c33a907c5a47970611567"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // --- State ---
     let currentTripId = null;
-    let expensesCol = null;
     let currentTripClosed = false;
-    let currentTripName = "";
-    let cachedExpenses = [];
 
+    let expensesCol = null;
+    let cachedExpenses = [];         // [{id, user, amount, description, date, createdAt}, ...]
+    let cachedMembers = {};          // { name: "pending"|"approved"|"rejected", ... }
+
+    // --- Utils ---
     function ddmmyyyy(ts) { return new Date(ts).toLocaleDateString("en-GB"); }
     function toInt(v) { return parseInt(v) || 0; }
 
+    // --- UI: Rejected toggle ---
+    document.getElementById("rejectedToggle").addEventListener("click", () => {
+      const list = document.getElementById("rejectedList");
+      const title = document.getElementById("rejectedToggle");
+      if (list.style.display === "none") {
+        list.style.display = "block";
+        title.textContent = "Rejected Members ▲";
+      } else {
+        list.style.display = "none";
+        title.textContent = "Rejected Members ▼";
+      }
+    });
+
+    // --- Trips loading ---
     async function loadTrips() {
       const tripsSnap = await getDocs(collection(db,"trips"));
       const select = document.getElementById("tripSelect");
       select.innerHTML = '<option value="">--Select Trip--</option><option value="new">+ Create New Trip</option>';
 
-      let listDiv = document.getElementById("tripList");
+      const listDiv = document.getElementById("tripList");
       listDiv.innerHTML = "";
 
       tripsSnap.forEach(docSnap => {
@@ -139,20 +174,14 @@
       });
 
       const metaDoc = await getDoc(doc(db,"meta","currentTrip"));
-      if(metaDoc.exists()) {
+      if (metaDoc.exists()) {
         currentTripId = metaDoc.data().tripId;
-        if(currentTripId) {
+        if (currentTripId) {
           const tripDoc = await getDoc(doc(db,"trips",currentTripId));
-          if(tripDoc.exists()){
-            currentTripClosed=tripDoc.data().closed;
-            currentTripName=tripDoc.data().name;
-            if(!currentTripClosed){
-              select.value=currentTripId;
-              updateHeading(tripDoc.data());
-              startExpenseListener();
-            } else {
-              updateHeading(tripDoc.data());
-            }
+          if (tripDoc.exists()) {
+            currentTripClosed = !!tripDoc.data().closed;
+            updateHeading(tripDoc.data());
+            startListeners();
           }
         }
       }
@@ -168,7 +197,6 @@
         deleteBtn.style.display="none";
         return;
       }
-      currentTripName=tripData.name;
       if(tripData.closed){
         document.getElementById("activeTrip").innerText=`Viewing Closed Trip: ${tripData.name} (${ddmmyyyy(new Date(tripData.date))})`;
         closeBtn.style.display="none";
@@ -184,122 +212,186 @@
       await setDoc(doc(db,"meta","currentTrip"),{tripId:currentTripId});
     }
 
-    function startExpenseListener(){
-      if(!currentTripId) return;
+    // --- Live listeners (expenses + members) ---
+    function startListeners() {
+      if (!currentTripId) return;
+
+      // Expenses
       expensesCol = collection(db,"trips",currentTripId,"expenses");
-      const q=query(expensesCol,orderBy("createdAt","asc"));
-      onSnapshot(q,snap=>{
-        cachedExpenses=[];
-        snap.forEach(d=>cachedExpenses.push({id:d.id,...d.data()}));
-        renderExpenses(cachedExpenses);
+      const qExp = query(expensesCol, orderBy("createdAt","asc"));
+      onSnapshot(qExp, snap => {
+        cachedExpenses = [];
+        snap.forEach(d => cachedExpenses.push({ id: d.id, ...d.data() }));
+        renderAll();
+      });
+
+      // Members
+      const membersCol = collection(db, "trips", currentTripId, "members");
+      onSnapshot(membersCol, snap => {
+        cachedMembers = {};
+        snap.forEach(d => {
+          const data = d.data();
+          cachedMembers[d.id] = (data && data.status) ? data.status : "pending";
+        });
+        renderAll();
       });
     }
 
-    async function renderExpenses(expenses) {
+    // --- Renderers ---
+    function renderAll() {
+      renderExpensesTable();
+      renderMembersAndTotals();
+    }
+
+    function renderExpensesTable() {
       const container = document.getElementById("expensesContainer");
       container.innerHTML = "";
-      let total = 0;
-      let membersPaid = {};
 
-      let grouped = {};
-      expenses.forEach(e => {
+      // group by date
+      const grouped = {};
+      cachedExpenses.forEach(e => {
         const d = ddmmyyyy(e.date);
         if (!grouped[d]) grouped[d] = [];
         grouped[d].push(e);
-        total += toInt(e.amount);
-        membersPaid[e.user] = (membersPaid[e.user] || 0) + toInt(e.amount);
       });
 
-      // Render expenses
-      for (const date of Object.keys(grouped)) {
+      Object.keys(grouped).forEach(dateStr => {
         const h = document.createElement("div");
         h.className = "date-header";
-        h.innerText = date;
+        h.textContent = dateStr;
         container.appendChild(h);
 
         const table = document.createElement("table");
         table.innerHTML = `<thead><tr><th>Member</th><th>Amount</th><th>Description</th><th>Action</th></tr></thead>`;
         const tbody = document.createElement("tbody");
 
-        grouped[date].forEach(e => {
+        grouped[dateStr].forEach(e => {
           const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${e.user}</td>
-                          <td>₹${e.amount}</td>
-                          <td>${e.description}</td>
-                          <td>${currentTripClosed ? "" : "<button class='deleteBtn'>Delete</button>"}</td>`;
-          if (!currentTripClosed)
-            tr.querySelector("button").onclick = async () => {
+          tr.innerHTML = `
+            <td>${e.user}</td>
+            <td>₹${e.amount}</td>
+            <td>${e.description}</td>
+            <td>${currentTripClosed ? "" : "<button class='deleteBtn'>Delete</button>"}</td>
+          `;
+          if (!currentTripClosed) {
+            tr.querySelector(".deleteBtn").onclick = async () => {
               await deleteDoc(doc(db, "trips", currentTripId, "expenses", e.id));
             };
+          }
           tbody.appendChild(tr);
         });
 
         table.appendChild(tbody);
         container.appendChild(table);
+      });
+    }
+
+    async function renderMembersAndTotals() {
+      // Build lists
+      const pending = [];
+      const approved = [];
+      const rejected = [];
+      Object.entries(cachedMembers).forEach(([name, status]) => {
+        if (status === "pending") pending.push(name);
+        else if (status === "approved") approved.push(name);
+        else if (status === "rejected") rejected.push(name);
+      });
+
+      // Pending box
+      const approvalBox = document.getElementById("pendingApprovals");
+      const approvalList = document.getElementById("approvalList");
+      approvalList.innerHTML = "";
+      if (pending.length === 0) {
+        approvalBox.style.display = "none";
+      } else {
+        approvalBox.style.display = "block";
+        pending.forEach(name => {
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `
+            <span><b>${name}</b></span>
+            <div>
+              <button class="approveBtn">Approve</button>
+              <button class="rejectBtn">Reject</button>
+            </div>
+          `;
+          row.querySelector(".approveBtn").onclick = async () => {
+            await updateDoc(doc(db, "trips", currentTripId, "members", name), { status: "approved" });
+          };
+          row.querySelector(".rejectBtn").onclick = async () => {
+            await updateDoc(doc(db, "trips", currentTripId, "members", name), { status: "rejected" });
+          };
+          approvalList.appendChild(row);
+        });
       }
 
-      // Get all joined members
-      const membersSnap = await getDocs(collection(db, "trips", currentTripId, "members"));
-      let allMembers = [];
-      membersSnap.forEach(d => allMembers.push(d.id));
+      // Totals + per-head (approved only)
+      let total = 0;
+      const paidBy = {}; // totals per user from all expenses
+      cachedExpenses.forEach(e => {
+        total += toInt(e.amount);
+        paidBy[e.user] = (paidBy[e.user] || 0) + toInt(e.amount);
+      });
 
-      // Merge with paid
-      allMembers.forEach(m => { if (!membersPaid[m]) membersPaid[m] = 0; });
-
-      const perHead = allMembers.length ? Math.round(total / allMembers.length) : 0;
+      const perHead = approved.length ? Math.round(total / approved.length) : 0;
       document.getElementById("totals").innerText = `Total: ₹${total} | Per Head: ₹${perHead}`;
 
+      // Summary table (approved only)
       const sumBody = document.getElementById("memberTotals");
       sumBody.innerHTML = "";
-      for (const m of allMembers) {
-        const memberDoc = membersSnap.docs.find(d => d.id === m);
-        const approved = memberDoc?.data()?.approved ?? false;
-
-        const paid = membersPaid[m] || 0;
+      approved.forEach(name => {
+        const paid = paidBy[name] || 0;
         const bal = paid - perHead;
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${m}</td>
-                        <td>₹${paid}</td>
-                        <td class="${bal >= 0 ? 'positive' : 'negative'}">
-                          ${bal >= 0 ? '+₹' + bal : '-₹' + Math.abs(bal)}
-                        </td>
-                        <td>
-                          ${approved ? '<span style="color:green;">✔ Approved</span>' : `<button class="approveBtn">Approve</button>`}
-                          ${currentTripClosed ? "" : `<button class="deleteBtn">🗑</button>`}
-                        </td>`;
-        
-        // approve button
-        if (!approved) {
-          tr.querySelector(".approveBtn").onclick = async () => {
-            await updateDoc(doc(db, "trips", currentTripId, "members", m), { approved: true });
-            renderExpenses(cachedExpenses);
-          };
-        }
+        tr.innerHTML = `
+          <td>${name}</td>
+          <td>₹${paid}</td>
+          <td class="${bal >= 0 ? 'positive':'negative'}">${bal >= 0 ? "+₹"+bal : "-₹"+Math.abs(bal)}</td>
+          <td>${currentTripClosed ? "" : `<button class="deleteBtn">🗑</button>`}</td>
+        `;
 
-        // delete button
         if (!currentTripClosed) {
           tr.querySelector(".deleteBtn").onclick = async () => {
             if (confirm("Remove this member and all their expenses?")) {
               const batch = writeBatch(db);
-              batch.delete(doc(db, "trips", currentTripId, "members", m));
-              const expSnap = await getDocs(collection(db, "trips", currentTripId, "expenses"));
-              expSnap.forEach(e => { if (e.data().user === m) batch.delete(e.ref); });
+              batch.delete(doc(db, "trips", currentTripId, "members", name));
+              // delete all their expenses
+              const expCol = collection(db, "trips", currentTripId, "expenses");
+              const allExp = await getDocs(expCol);
+              allExp.forEach(e => { if (e.data().user === name) batch.delete(e.ref); });
               await batch.commit();
-
-              // Clear local login if this was the logged-in user
-              if (localStorage.getItem("memberName") === m) {
-                localStorage.removeItem("memberName");
-              }
-              renderExpenses(cachedExpenses);
             }
           };
         }
 
         sumBody.appendChild(tr);
+      });
+
+      // Rejected (collapsible, visible only if list not empty)
+      const rejectedBox = document.getElementById("rejectedBox");
+      const rejectedList = document.getElementById("rejectedList");
+      rejectedList.innerHTML = "";
+      if (rejected.length > 0) {
+        rejectedBox.style.display = "block";
+        rejected.forEach(name => {
+          const div = document.createElement("div");
+          div.className = "trip-item";
+          div.innerHTML = `
+            <span>${name}</span>
+            <button class="approveBtn">Re-Approve</button>
+          `;
+          div.querySelector(".approveBtn").onclick = async () => {
+            await updateDoc(doc(db, "trips", currentTripId, "members", name), { status: "approved" });
+          };
+          rejectedList.appendChild(div);
+        });
+      } else {
+        rejectedBox.style.display = "none";
       }
     }
 
+    // --- Init ---
     loadTrips();
   </script>
 </body>
-</html>
+  </html>
