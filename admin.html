@@ -17,7 +17,10 @@
 <link rel="manifest" href="manifest-admin.json">
 <script>
 if ("serviceWorker" in navigator) {
- navigator.serviceWorker.register("./sw-admin.js", { scope: "./admin/" });
+  navigator.serviceWorker
+    .register("/sw-admin.js", { scope: "/admin.html" })
+    .then(reg => console.log("Admin SW registered:", reg.scope))
+    .catch(err => console.error("Admin SW failed:", err));
 }
 </script>
 
