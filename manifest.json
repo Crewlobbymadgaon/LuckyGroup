@@ -2,7 +2,7 @@
   "id": "tour-user",
   "name": "Tour Expense",
   "short_name": "Tour",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "theme_color": "#4CAF50",
