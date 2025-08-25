@@ -1,12 +1,12 @@
 {
-  "id": "/tour-admin",
+  "id": "tour-admin",
   "name": "Tour (Admin)",
   "short_name": "Admin",
-  "start_url": "/admin/index.html",
-  "scope": "/admin/",
+  "start_url": "/admin.html",
+  "scope": "/admin.html",
   "display": "standalone",
-  "background_color": "#ffffff",
   "theme_color": "#2196F3",
+  "background_color": "#ffffff",
   "icons": [
     {
       "src": "icon-admin-192.png",
