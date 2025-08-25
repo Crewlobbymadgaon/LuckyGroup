@@ -1,7 +1,12 @@
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open("vc-user-v1").then(cache => {
-      return cache.addAll(["./index.html", "./manifest.json", "./icon-192.png"]);
+      return cache.addAll([
+        "./index.html",
+        "./manifest.json",
+        "./icon-192.png",
+        "./icon-512.png"
+      ]);
     })
   );
 });
